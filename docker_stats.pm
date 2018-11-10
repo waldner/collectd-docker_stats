@@ -111,11 +111,11 @@ sub get_containers {
     $C->{$name}->{'id'} = $id;
 
     # don't call the api to get the pid if cached
-    if ( (not exists $CONTAINERS->{$name}->{'pid'}) || ($CONTAINERS->{$name}->{'id'} ne $id)) {
+    if ( exists $CONTAINERS->{$name}->{'pid'}) { 
+      $C->{$name}->{'pid'} = $CONTAINERS->{$name}->{'pid'};
+    } else {
       my $pid = get_container_pid($id);
       $C->{$name}->{'pid'} = $pid;
-    } else {
-      $C->{$name}->{'pid'} = $CONTAINERS->{$name}->{'pid'};
     }
 
     if ($CONFIG->{'size_wanted'} == 1) {
@@ -378,7 +378,17 @@ sub do_read {
   my ($id, $pid) = ($CONTAINERS->{$container}->{'id'}, $CONTAINERS->{$container}->{'pid'});
 
   $DATA->{$container}->{'memory_stats'} = get_mem_stats_from_files($id);
-  $DATA->{$container}->{'network'} = get_net_stats_from_files($pid);
+  eval { $DATA->{$container}->{'network'} = get_net_stats_from_files($pid) };
+
+  if ($@) {
+    # pid likely changed
+    plugin_log(LOG_WARNING, "$PLUGIN_NAME: failed to read network stats for pid $pid, PID has likely changed, getting new PID");
+    $pid = get_container_pid($id);
+    $CONTAINERS->{$container}->{'pid'} = $pid;
+    plugin_log(LOG_WARNING, "$PLUGIN_NAME: new PID is $pid");
+    $DATA->{$container}->{'network'} = get_net_stats_from_files($pid);
+  }
+
   $DATA->{$container}->{'cpu_stats'} = get_cpu_stats_from_files($id);
   $DATA->{$container}->{'blkio_stats'} = get_blkio_stats_from_files($id);
 }
