@@ -87,3 +87,6 @@ Four types of data are collected:
 ### Caveats
 
 Only works on Linux (obviously) and might break if the location or contents of some pseudo-file ever changes (which is almost guaranteed to happen when cgroups v2 arrive, and possibly even within v1 at any time).
+
+It's racy in certain parts, especially network stats, altough the corner cases are very unlikely to happen and it should work fine most of the time. The idea is to avoid doing full API queries to inspect each ocntainer at each iteration.
+
